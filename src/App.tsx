@@ -3,6 +3,8 @@ import { useFetch } from "./hooks/useFetch";
 import { Row } from "./components/table_row";
 import { getDataApi } from "./services/api/api";
 import { getBaseAPIUrl } from "./services/api/get_base_url";
+import { TStudentProps, TDataTable, TChart } from "./types";
+import { createData } from "./util/createData";
 import {
   Stack,
   Box,
@@ -15,25 +17,27 @@ import {
   TableRow,
   Paper,
   TablePagination,
+  Typography,
 } from "@mui/material";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterLuxon } from "@mui/x-date-pickers/AdapterLuxon";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { DateTime } from "luxon";
-
-const createData = (name: any, details?: any) => {
-  return {
-    name,
-    history: details,
-  };
-};
 
 function App() {
   const [datePickerValue, setDatePickerValue] = useState<DateTime | string>(
     "2015-03-02"
   );
 
-  //pagination
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
 
@@ -61,15 +65,16 @@ function App() {
         .toISOString()
         .substring(0, 10);
 
-      const studentsIds = fetchedData.map((student: any) => student.UserId);
+      const studentsIds = fetchedData.map(
+        (student: TStudentProps) => student.UserId
+      );
 
-      //@ts-ignore
       const uniqueIds = [...new Set(studentsIds)];
 
       const studentPropsByEveryDate = {};
       uniqueIds.forEach((studentId) => {
         const extractedPropsforEveryStudent = fetchedData.filter(
-          (item: any) => item.UserId === studentId
+          (item: TStudentProps) => item.UserId === studentId
         );
         //@ts-ignore
         studentPropsByEveryDate[studentId] = extractedPropsforEveryStudent;
@@ -79,7 +84,8 @@ function App() {
       for (const [key, value] of Object.entries(studentPropsByEveryDate)) {
         //@ts-ignore
         const filterDates = value.filter(
-          (item: any) => item.SubmitDateTime.substring(0, 10) === currentDate
+          (item: TStudentProps) =>
+            item.SubmitDateTime.substring(0, 10) === currentDate
         );
         //@ts-ignore
         studentPropsByCurrentDate[key] = filterDates;
@@ -89,7 +95,7 @@ function App() {
     }
   }, [datePickerValue, fetchedData]);
 
-  const clickedValueHandler = (newValue: any) => {
+  const clickedValueHandler = (newValue: DateTime) => {
     setDatePickerValue(newValue);
   };
 
@@ -104,16 +110,26 @@ function App() {
     setPage(0);
   };
 
-  let rows: any = [];
+  const onKeyDownHandler = (event: React.SyntheticEvent) => {
+    event.preventDefault();
+  };
+
+  let rows: TDataTable[] = [];
   if (students) {
-    rows = Object.keys(students).map((stud) => {
+    const domains: string[] = [];
+    rows = Object.keys(students).map((student) => {
       //@ts-ignore
-      const domain = students[stud].map((item: any) => item.Domain);
+      students[student].forEach((student: TStudentProps) => {
+        domains.push(student.Domain);
+      });
+
+      const domain = [...new Set(domains)].join(", ");
 
       return createData(
-        stud,
+        student,
+        domain,
         //@ts-ignore
-        students[stud].map((item: any) => item)
+        students[student].map((item: TStudentProps) => item)
       );
     });
   }
@@ -122,56 +138,107 @@ function App() {
     return ind >= rowsPerPage * page && ind < rowsPerPage * (page + 1);
   });
 
+  const chartData: TChart[] = useMemo(() => {
+    const studentsChartData = [];
+    for (const [key, value] of Object.entries(students)) {
+      //@ts-ignore
+      const progress = value
+        .map((item: TStudentProps) => item.Progress)
+        .reduce((accumulator: number, currentValue: number) => {
+          return accumulator + currentValue;
+        }, 0);
+
+      const studentProps = {
+        name: key,
+        progress,
+      };
+      studentsChartData.push(studentProps);
+    }
+
+    return studentsChartData;
+  }, [students]);
+
   return (
     <div className="App">
-      <Stack
-        p={4}
-        flexDirection="column"
-        justifyContent={"center"}
-        alignItems={"center"}
-      >
-        <Box component="div">
-          <LocalizationProvider dateAdapter={AdapterLuxon}>
-            <DatePicker
-              disableMaskedInput
-              inputFormat="dd-MM-yyyy"
-              orientation="landscape"
-              label="Basic example"
-              value={datePickerValue}
-              onChange={(newValue) => clickedValueHandler(newValue)}
-              renderInput={(params) => <TextField {...params} />}
-            />
-          </LocalizationProvider>
+      <Stack p={4} flexDirection="row">
+        <Box flexBasis="50%">
+          <Box display="flex" justifyContent="center">
+            <Typography marginBottom={8} variant="h4">
+              Student details
+            </Typography>
+          </Box>
+
+          <Box component="div" marginBottom={5}>
+            <LocalizationProvider dateAdapter={AdapterLuxon}>
+              <DatePicker
+                disableMaskedInput
+                inputFormat="dd-MM-yyyy"
+                orientation="landscape"
+                label="Basic example"
+                value={datePickerValue}
+                onChange={(newValue) =>
+                  clickedValueHandler(newValue as DateTime)
+                }
+                renderInput={(params) => (
+                  <TextField onKeyDown={onKeyDownHandler} {...params} />
+                )}
+              />
+            </LocalizationProvider>
+          </Box>
+          <Box width="100%">
+            <TableContainer component={Paper}>
+              <Table aria-label="collapsible table">
+                <TableHead>
+                  <TableRow>
+                    <TableCell />
+                    <TableCell>Student ID</TableCell>
+                    <TableCell align="left">
+                      What my class worked on today
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {currentRows.map((row: TDataTable) => (
+                    <Row key={row.name} row={row} />
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 20]}
+                component="div"
+                count={rows.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+              />
+            </TableContainer>
+          </Box>
         </Box>
-        <Box width="70%">
-          <TableContainer component={Paper}>
-            <Table aria-label="collapsible table">
-              <TableHead>
-                <TableRow>
-                  <TableCell />
-                  <TableCell>Dessert (100g serving)</TableCell>
-                  <TableCell align="right">Calories</TableCell>
-                  <TableCell align="right">Fat&nbsp;(g)</TableCell>
-                  <TableCell align="right">Carbs&nbsp;(g)</TableCell>
-                  <TableCell align="right">Protein&nbsp;(g)</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {currentRows.map((row: any) => (
-                  <Row key={row.name} row={row} />
-                ))}
-              </TableBody>
-            </Table>
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 20]}
-              component="div"
-              count={rows.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handleChangePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-            />
-          </TableContainer>
+        <Box flexBasis="50%">
+          <Box display="flex" justifyContent="center">
+            <Typography marginBottom={8} variant="h4">
+              Student graph
+            </Typography>
+          </Box>
+          <BarChart
+            width={900}
+            height={600}
+            data={chartData}
+            margin={{
+              top: 5,
+              right: 30,
+              left: 20,
+              bottom: 5,
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="progress" fill="#8884d8" />
+          </BarChart>
         </Box>
       </Stack>
     </div>

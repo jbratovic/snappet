@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-
+import { DateTime } from "luxon";
+import { TStudentProps } from "../../types";
 import {
   IconButton,
   Collapse,
@@ -11,12 +12,9 @@ import {
   TableHead,
   TableRow,
 } from "@mui/material";
+
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-
-// type TObj = {
-//     name: string;
-// };
 
 export const Row = (props: { row: any }) => {
   const { row } = props;
@@ -38,6 +36,9 @@ export const Row = (props: { row: any }) => {
         <TableCell component="th" scope="row">
           {row.name}
         </TableCell>
+        <TableCell component="th" scope="row">
+          {row.domain}
+        </TableCell>
       </TableRow>
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
@@ -49,25 +50,33 @@ export const Row = (props: { row: any }) => {
               <Table size="small" aria-label="purchases">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Customer</TableCell>
-                    <TableCell>Amount</TableCell>
                     <TableCell>Subject</TableCell>
+                    <TableCell>Learning objective</TableCell>
+                    <TableCell>Difficulty</TableCell>
+                    <TableCell>Progress</TableCell>
+                    <TableCell>Submitted date time</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {row.history.map((historyRow: any, index: number) => {
-                    return (
-                      <TableRow key={historyRow.UserId + index}>
-                        <TableCell component="th" scope="row">
-                          {historyRow.SubmitDateTime}
-                        </TableCell>
-                        <TableCell>{historyRow.UserId}</TableCell>
-                        <TableCell>{historyRow.Subject}</TableCell>
-                        <TableCell>{historyRow.LearningObjective}</TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {row.history.map(
+                    (historyRow: TStudentProps, index: number) => {
+                      return (
+                        <TableRow key={historyRow.UserId + index}>
+                          <TableCell component="th" scope="row">
+                            {historyRow.Subject}
+                          </TableCell>
+                          <TableCell>{historyRow.LearningObjective}</TableCell>
+                          <TableCell>{historyRow.Difficulty}</TableCell>
+                          <TableCell>{historyRow.Progress}</TableCell>
+                          <TableCell>{`${DateTime.fromISO(
+                            historyRow.SubmitDateTime
+                          ).toLocaleString(
+                            DateTime.DATETIME_MED_WITH_SECONDS
+                          )}`}</TableCell>
+                        </TableRow>
+                      );
+                    }
+                  )}
                 </TableBody>
               </Table>
             </Box>
