@@ -21,3 +21,8 @@ export type TChart = {
   name: string;
   progress: number;
 };
+
+export enum ESortCategory {
+  highest = "highest",
+  lowest = "lowest",
+}

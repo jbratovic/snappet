@@ -5,6 +5,7 @@ import { getDataApi } from "./services/api/api";
 import { getBaseAPIUrl } from "./services/api/get_base_url";
 import { TStudentProps, TDataTable, TChart } from "./types";
 import { createData } from "./util/createData";
+import { ESortCategory } from "./types";
 import {
   Stack,
   Box,
@@ -18,6 +19,13 @@ import {
   Paper,
   TablePagination,
   Typography,
+  CircularProgress,
+  Alert,
+  AlertTitle,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import {
   BarChart,
@@ -42,6 +50,8 @@ function App() {
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
 
   const [students, setStudents] = useState({});
+
+  const [filter, setFilter] = useState("");
 
   const url = `${getBaseAPIUrl()}Snappet/SnappetChallenge/master/Data/work.json`;
 
@@ -97,6 +107,7 @@ function App() {
 
   const clickedValueHandler = (newValue: DateTime) => {
     setDatePickerValue(newValue);
+    setFilter("");
   };
 
   const handleChangePage = (event: any, newPage: number) => {
@@ -112,6 +123,37 @@ function App() {
 
   const onKeyDownHandler = (event: React.SyntheticEvent) => {
     event.preventDefault();
+  };
+
+  const changeHandler = (event: any) => {
+    const category = event.target.value;
+    if (category === ESortCategory.highest) {
+      const studentSortedByHighProgress = {};
+      for (const [key, value] of Object.entries(students)) {
+        //@ts-ignore
+        const sortByHighProgress = value.sort((a, b) =>
+          Math.round(a.Progress) < Math.round(b.Progress) ? 1 : -1
+        );
+        //@ts-ignore
+        studentSortedByHighProgress[key] = sortByHighProgress;
+      }
+
+      setStudents(studentSortedByHighProgress);
+      setFilter(category);
+    } else if (category === ESortCategory.lowest) {
+      const studentSortedByLowProgress = {};
+      for (const [key, value] of Object.entries(students)) {
+        //@ts-ignore
+        const sortByLowProgress = value.sort((a, b) =>
+          Math.round(a.Progress) > Math.round(b.Progress) ? 1 : -1
+        );
+        //@ts-ignore
+        studentSortedByLowProgress[key] = sortByLowProgress;
+      }
+
+      setStudents(studentSortedByLowProgress);
+      setFilter(category);
+    }
   };
 
   let rows: TDataTable[] = [];
@@ -160,87 +202,148 @@ function App() {
 
   return (
     <div className="App">
-      <Stack p={4} flexDirection="row">
-        <Box flexBasis="50%">
-          <Box display="flex" justifyContent="center">
-            <Typography marginBottom={8} variant="h4">
-              Student details
-            </Typography>
-          </Box>
+      {error && (
+        <Box
+          sx={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            height: 500,
+            alignItems: "center",
+          }}
+        >
+          <Alert severity="error">
+            <AlertTitle>Error</AlertTitle>
+            <strong>{error}.</strong>
+          </Alert>
+        </Box>
+      )}
 
-          <Box component="div" marginBottom={5}>
-            <LocalizationProvider dateAdapter={AdapterLuxon}>
-              <DatePicker
-                disableMaskedInput
-                inputFormat="dd-MM-yyyy"
-                orientation="landscape"
-                label="Basic example"
-                value={datePickerValue}
-                onChange={(newValue) =>
-                  clickedValueHandler(newValue as DateTime)
-                }
-                renderInput={(params) => (
-                  <TextField onKeyDown={onKeyDownHandler} {...params} />
-                )}
-              />
-            </LocalizationProvider>
-          </Box>
-          <Box width="100%">
-            <TableContainer component={Paper}>
-              <Table aria-label="collapsible table">
-                <TableHead>
-                  <TableRow>
-                    <TableCell />
-                    <TableCell>Student ID</TableCell>
-                    <TableCell align="left">
-                      What my class worked on today
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {currentRows.map((row: TDataTable) => (
-                    <Row key={row.name} row={row} />
-                  ))}
-                </TableBody>
-              </Table>
-              <TablePagination
-                rowsPerPageOptions={[5, 10, 20]}
-                component="div"
-                count={rows.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-              />
-            </TableContainer>
-          </Box>
+      {loading && (
+        <Box
+          sx={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            height: 500,
+            alignItems: "center",
+          }}
+        >
+          <CircularProgress size={60} />
         </Box>
-        <Box flexBasis="50%">
-          <Box display="flex" justifyContent="center">
-            <Typography marginBottom={8} variant="h4">
-              Student graph
-            </Typography>
+      )}
+
+      {data && !loading && (
+        <Stack p={4} flexDirection="row">
+          <Box flexBasis="50%">
+            <Box display="flex" justifyContent="center">
+              <Typography marginBottom={8} variant="h4">
+                Student details
+              </Typography>
+            </Box>
+
+            <Box component="div" marginBottom={5}>
+              <LocalizationProvider dateAdapter={AdapterLuxon}>
+                <DatePicker
+                  disableMaskedInput
+                  inputFormat="dd-MM-yyyy"
+                  orientation="landscape"
+                  label="Pick date"
+                  value={datePickerValue}
+                  onChange={(newValue) =>
+                    clickedValueHandler(newValue as DateTime)
+                  }
+                  renderInput={(params) => (
+                    <TextField onKeyDown={onKeyDownHandler} {...params} />
+                  )}
+                />
+              </LocalizationProvider>
+
+              <FormControl
+                sx={{
+                  minWidth: 200,
+                  marginLeft: 3,
+                  "@media screen and (max-width: 1024px)": {
+                    minWidth: 140,
+                  },
+                  "@media screen and (max-width: 768px)": {
+                    width: "100%",
+                    mb: 1,
+                  },
+                }}
+              >
+                <InputLabel id="standard-label">
+                  Sort student progress
+                </InputLabel>
+                <Select
+                  labelId="standard-label"
+                  id="standard"
+                  onChange={changeHandler}
+                  label="Age"
+                  value={filter}
+                >
+                  <MenuItem value="highest">By high values</MenuItem>
+                  <MenuItem value="lowest">By low values</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+            <Box width="100%">
+              <TableContainer component={Paper}>
+                <Table aria-label="collapsible table">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell />
+                      <TableCell>Student ID</TableCell>
+                      <TableCell align="left">
+                        What my class worked on today
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {currentRows.map((row: TDataTable) => (
+                      <Row key={row.name} row={row} />
+                    ))}
+                  </TableBody>
+                </Table>
+                <TablePagination
+                  rowsPerPageOptions={[5, 10, 20]}
+                  component="div"
+                  count={rows.length}
+                  rowsPerPage={rowsPerPage}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                />
+              </TableContainer>
+            </Box>
           </Box>
-          <BarChart
-            width={900}
-            height={600}
-            data={chartData}
-            margin={{
-              top: 5,
-              right: 30,
-              left: 20,
-              bottom: 5,
-            }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="progress" fill="#8884d8" />
-          </BarChart>
-        </Box>
-      </Stack>
+          <Box flexBasis="50%">
+            <Box display="flex" justifyContent="center">
+              <Typography marginBottom={8} variant="h4">
+                Student graph
+              </Typography>
+            </Box>
+            <BarChart
+              width={900}
+              height={600}
+              data={chartData}
+              margin={{
+                top: 5,
+                right: 30,
+                left: 20,
+                bottom: 5,
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="progress" fill="#8884d8" />
+            </BarChart>
+          </Box>
+        </Stack>
+      )}
     </div>
   );
 }
