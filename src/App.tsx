@@ -3,8 +3,9 @@ import { useFetch } from "./hooks/useFetch";
 import { Row } from "./components/table_row";
 import { getDataApi } from "./services/api/api";
 import { getBaseAPIUrl } from "./services/api/get_base_url";
-import { TStudentProps, TDataTable, TChart } from "./types";
+import { TStudents, TStudentProps, TDataTable, TChart } from "./types";
 import { createData } from "./util/createData";
+import { sortStudents } from "./util/sort_students";
 import { ESortCategory } from "./types";
 import {
   Stack,
@@ -46,10 +47,10 @@ function App() {
     "2015-03-02"
   );
 
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  const [students, setStudents] = useState({});
+  const [students, setStudents] = useState<TStudents>({} as TStudents);
 
   const [filter, setFilter] = useState("");
 
@@ -70,8 +71,7 @@ function App() {
 
   useEffect(() => {
     if (fetchedData) {
-      //@ts-ignore
-      const currentDate = new Date(datePickerValue)
+      const currentDate = new Date(datePickerValue as string)
         .toISOString()
         .substring(0, 10);
 
@@ -81,31 +81,31 @@ function App() {
 
       const uniqueIds = [...new Set(studentsIds)];
 
-      const studentPropsByEveryDate = {};
-      uniqueIds.forEach((studentId) => {
+      const studentPropsByEveryDate: TStudents = {};
+
+      uniqueIds.forEach((studentId: any) => {
         const extractedPropsforEveryStudent = fetchedData.filter(
           (item: TStudentProps) => item.UserId === studentId
         );
-        //@ts-ignore
+
         studentPropsByEveryDate[studentId] = extractedPropsforEveryStudent;
       });
 
-      const studentPropsByCurrentDate = {};
+      const studentPropsByCurrentDate: TStudents = {};
       for (const [key, value] of Object.entries(studentPropsByEveryDate)) {
-        //@ts-ignore
         const filterDates = value.filter(
           (item: TStudentProps) =>
             item.SubmitDateTime.substring(0, 10) === currentDate
         );
-        //@ts-ignore
-        studentPropsByCurrentDate[key] = filterDates;
+
+        studentPropsByCurrentDate[key as any] = filterDates;
       }
 
       setStudents(studentPropsByCurrentDate);
     }
   }, [datePickerValue, fetchedData]);
 
-  const clickedValueHandler = (newValue: DateTime) => {
+  const datePickerValueHandler = (newValue: DateTime) => {
     setDatePickerValue(newValue);
     setFilter("");
   };
@@ -127,29 +127,20 @@ function App() {
 
   const changeHandler = (event: any) => {
     const category = event.target.value;
+
     if (category === ESortCategory.highest) {
-      const studentSortedByHighProgress = {};
-      for (const [key, value] of Object.entries(students)) {
-        //@ts-ignore
-        const sortByHighProgress = value.sort((a, b) =>
-          Math.round(a.Progress) < Math.round(b.Progress) ? 1 : -1
-        );
-        //@ts-ignore
-        studentSortedByHighProgress[key] = sortByHighProgress;
-      }
+      const studentSortedByHighProgress = sortStudents(
+        students,
+        ESortCategory.highest
+      );
 
       setStudents(studentSortedByHighProgress);
       setFilter(category);
     } else if (category === ESortCategory.lowest) {
-      const studentSortedByLowProgress = {};
-      for (const [key, value] of Object.entries(students)) {
-        //@ts-ignore
-        const sortByLowProgress = value.sort((a, b) =>
-          Math.round(a.Progress) > Math.round(b.Progress) ? 1 : -1
-        );
-        //@ts-ignore
-        studentSortedByLowProgress[key] = sortByLowProgress;
-      }
+      const studentSortedByLowProgress = sortStudents(
+        students,
+        ESortCategory.lowest
+      );
 
       setStudents(studentSortedByLowProgress);
       setFilter(category);
@@ -158,10 +149,10 @@ function App() {
 
   let rows: TDataTable[] = [];
   if (students) {
-    const domains: string[] = [];
-    rows = Object.keys(students).map((student) => {
-      //@ts-ignore
-      students[student].forEach((student: TStudentProps) => {
+    rows = Object.keys(students as TStudents).map((student: string) => {
+      const domains: string[] = [];
+
+      students[student as any].forEach((student: TStudentProps) => {
         domains.push(student.Domain);
       });
 
@@ -183,8 +174,7 @@ function App() {
   const chartData: TChart[] = useMemo(() => {
     const studentsChartData = [];
     for (const [key, value] of Object.entries(students)) {
-      //@ts-ignore
-      const progress = value
+      const progress = (value as TStudentProps[])
         .map((item: TStudentProps) => item.Progress)
         .reduce((accumulator: number, currentValue: number) => {
           return accumulator + currentValue;
@@ -238,7 +228,7 @@ function App() {
           <Box flexBasis="50%">
             <Box display="flex" justifyContent="center">
               <Typography marginBottom={8} variant="h4">
-                Student details
+                Students details
               </Typography>
             </Box>
 
@@ -251,7 +241,7 @@ function App() {
                   label="Pick date"
                   value={datePickerValue}
                   onChange={(newValue) =>
-                    clickedValueHandler(newValue as DateTime)
+                    datePickerValueHandler(newValue as DateTime)
                   }
                   renderInput={(params) => (
                     <TextField onKeyDown={onKeyDownHandler} {...params} />
@@ -261,7 +251,7 @@ function App() {
 
               <FormControl
                 sx={{
-                  minWidth: 200,
+                  minWidth: 220,
                   marginLeft: 3,
                   "@media screen and (max-width: 1024px)": {
                     minWidth: 140,
@@ -273,7 +263,7 @@ function App() {
                 }}
               >
                 <InputLabel id="standard-label">
-                  Sort student progress
+                  Sort students progress
                 </InputLabel>
                 <Select
                   labelId="standard-label"
@@ -282,8 +272,8 @@ function App() {
                   label="Age"
                   value={filter}
                 >
-                  <MenuItem value="highest">By high values</MenuItem>
-                  <MenuItem value="lowest">By low values</MenuItem>
+                  <MenuItem value="highest">By highest values</MenuItem>
+                  <MenuItem value="lowest">By lowest values</MenuItem>
                 </Select>
               </FormControl>
             </Box>
@@ -320,7 +310,7 @@ function App() {
           <Box flexBasis="50%">
             <Box display="flex" justifyContent="center">
               <Typography marginBottom={8} variant="h4">
-                Student graph
+                Students graph
               </Typography>
             </Box>
             <BarChart

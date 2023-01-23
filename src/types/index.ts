@@ -22,6 +22,10 @@ export type TChart = {
   progress: number;
 };
 
+export type TStudents = {
+  [key: number]: TStudentProps[];
+};
+
 export enum ESortCategory {
   highest = "highest",
   lowest = "lowest",

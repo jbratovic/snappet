@@ -1,6 +1,7 @@
 # Snappet
 
 For faster development this project was bootstrapped with [Create React App](https://create-react-app.dev/docs/adding-typescript/) with Typescript included.
+I didn't know how to make a design, so I used [Material-UI](https://mui.com/) to make it easier for organize how it looks.
 
 ## Available Scripts
 
