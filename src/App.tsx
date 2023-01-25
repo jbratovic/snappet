@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useMemo, useEffect, useContext } from "react";
 import { useFetch } from "./hooks/useFetch";
 import { Row } from "./components/table_row";
 import { getDataApi } from "./services/api/api";
@@ -7,6 +7,7 @@ import { TStudents, TStudentProps, TDataTable, TChart } from "./types";
 import { createData } from "./util/createData";
 import { sortStudents } from "./util/sort_students";
 import { ESortCategory } from "./types";
+import { StudentsContext } from "./context/students_table";
 import {
   Stack,
   Box,
@@ -43,16 +44,8 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { DateTime } from "luxon";
 
 function App() {
-  const [datePickerValue, setDatePickerValue] = useState<DateTime | string>(
-    "2015-03-02"
-  );
-
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-
-  const [students, setStudents] = useState<TStudents>({} as TStudents);
-
-  const [filter, setFilter] = useState("");
+  const { state, setState } = useContext(StudentsContext);
+  const { students, datePickerValue, page, rowsPerPage, filter } = state;
 
   const url = `${getBaseAPIUrl()}Snappet/SnappetChallenge/master/Data/work.json`;
 
@@ -101,24 +94,22 @@ function App() {
         studentPropsByCurrentDate[key as any] = filterDates;
       }
 
-      setStudents(studentPropsByCurrentDate);
+      setState({ students: studentPropsByCurrentDate });
     }
-  }, [datePickerValue, fetchedData]);
+  }, [datePickerValue, fetchedData, setState]);
 
   const datePickerValueHandler = (newValue: DateTime) => {
-    setDatePickerValue(newValue);
-    setFilter("");
+    setState({ datePickerValue: newValue, filter: "" });
   };
 
   const handleChangePage = (event: any, newPage: number) => {
-    setPage(newPage);
+    setState({ page: newPage });
   };
 
   const handleChangeRowsPerPage = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
+    setState({ rowsPerPage: parseInt(event.target.value, 10), page: 0 });
   };
 
   const onKeyDownHandler = (event: React.SyntheticEvent) => {
@@ -134,42 +125,45 @@ function App() {
         ESortCategory.highest
       );
 
-      setStudents(studentSortedByHighProgress);
-      setFilter(category);
+      setState({ students: studentSortedByHighProgress, filter: category });
     } else if (category === ESortCategory.lowest) {
       const studentSortedByLowProgress = sortStudents(
         students,
         ESortCategory.lowest
       );
 
-      setStudents(studentSortedByLowProgress);
-      setFilter(category);
+      setState({ students: studentSortedByLowProgress, filter: category });
     }
   };
 
-  let rows: TDataTable[] = [];
-  if (students) {
-    rows = Object.keys(students as TStudents).map((student: string) => {
-      const domains: string[] = [];
+  const rows: TDataTable[] = useMemo((): TDataTable[] => {
+    let tableRows: TDataTable[] = [];
+    if (students) {
+      tableRows = Object.keys(students as TStudents).map((student: string) => {
+        const domains: string[] = [];
 
-      students[student as any].forEach((student: TStudentProps) => {
-        domains.push(student.Domain);
+        students[student as any].forEach((student: TStudentProps) => {
+          domains.push(student.Domain);
+        });
+
+        const domain = [...new Set(domains)].join(", ");
+
+        return createData(
+          student,
+          domain,
+          //@ts-ignore
+          students[student].map((item: TStudentProps) => item)
+        );
       });
+    }
+    return tableRows;
+  }, [students]);
 
-      const domain = [...new Set(domains)].join(", ");
-
-      return createData(
-        student,
-        domain,
-        //@ts-ignore
-        students[student].map((item: TStudentProps) => item)
-      );
+  const currentRows = useMemo(() => {
+    return rows.filter((r: any, ind: any) => {
+      return ind >= rowsPerPage * page && ind < rowsPerPage * (page + 1);
     });
-  }
-
-  const currentRows = rows.filter((r: any, ind: any) => {
-    return ind >= rowsPerPage * page && ind < rowsPerPage * (page + 1);
-  });
+  }, [page, rows, rowsPerPage]);
 
   const chartData: TChart[] = useMemo(() => {
     const studentsChartData = [];
